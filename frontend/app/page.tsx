@@ -3,15 +3,34 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
+type FieldDefinition = {
+  id: number;
+  field_key: string;
+  section: string;
+  name: string;
+  field_type: string;
+  required: string;
+  automation_mode: string;
+  notes?: string | null;
+};
+
+type UploadedFile = {
+  id: number;
+  filename: string;
+  original_filename: string;
+  file_path: string;
+};
+
 type Project = {
-  id: number | string;
+  id: number;
   name: string;
   indication: string;
   template_name: string;
-  pdf_count: number;
   stage: string;
-  fields_json?: unknown[];
-  extracted_fields_json?: unknown[];
+  created_at?: string;
+  updated_at?: string;
+  files?: UploadedFile[];
+  fields?: FieldDefinition[];
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -98,11 +117,11 @@ export default function HomePage() {
                     </div>
 
                     <p className="mt-2 text-sm text-slate-600">
-                      {project.indication} · {project.template_name} · {project.pdf_count} PDF(s)
+                      {project.indication} · {project.template_name} · {project.files?.length ?? 0} PDF(s)
                     </p>
 
                     <p className="mt-2 text-sm text-slate-500">
-                      {(project.fields_json?.length ?? 0)} configured fields
+                      {project.fields?.length ?? 0} configured fields
                     </p>
                   </div>
 
