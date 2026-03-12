@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { Sidebar } from '@/components/sidebar';
+import { Topbar } from '@/components/topbar';
 
 type FieldConfig = {
   id: string;
@@ -18,12 +20,11 @@ type Project = {
   name: string;
   indication: string;
   template_name: string;
-  pdf_count: number;
   stage: string;
-  fields_json?: FieldConfig[];
+  fields?: FieldConfig[];
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
 const defaultFields: FieldConfig[] = [
   {
@@ -33,6 +34,7 @@ const defaultFields: FieldConfig[] = [
     type: 'text',
     required: true,
     automationMode: 'AI Curated',
+    notes: '',
   },
   {
     id: 'f2',
@@ -41,6 +43,7 @@ const defaultFields: FieldConfig[] = [
     type: 'location',
     required: true,
     automationMode: 'AI + Human',
+    notes: '',
   },
   {
     id: 'f3',
@@ -49,8 +52,23 @@ const defaultFields: FieldConfig[] = [
     type: 'text',
     required: true,
     automationMode: 'AI + Human',
+    notes: '',
   },
 ];
+
+function normalizeFields(fields?: FieldConfig[]): FieldConfig[] {
+  if (!fields || fields.length === 0) return defaultFields;
+
+  return fields.map((field, index) => ({
+    id: field.id || `f${index + 1}`,
+    section: field.section || '',
+    name: field.name || '',
+    type: field.type || 'text',
+    required: Boolean(field.required),
+    automationMode: field.automationMode || 'AI + Human',
+    notes: field.notes || '',
+  }));
+}
 
 export default function ConfigureFieldsPage() {
   const params = useParams<{ id: string }>();
@@ -80,19 +98,16 @@ export default function ConfigureFieldsPage() {
         });
 
         if (!res.ok) {
-          throw new Error(`Failed to load project: ${res.status}`);
+          const text = await res.text();
+          throw new Error(text || `Failed to load project: ${res.status}`);
         }
 
         const data = await res.json();
         setProject(data);
-        setFields(
-          Array.isArray(data.fields_json) && data.fields_json.length > 0
-            ? data.fields_json
-            : defaultFields
-        );
+        setFields(normalizeFields(data.fields));
       } catch (err) {
         console.error(err);
-        setError('Unable to load project.');
+        setError(err instanceof Error ? err.message : 'Unable to load project.');
       } finally {
         setLoading(false);
       }
@@ -133,12 +148,24 @@ export default function ConfigureFieldsPage() {
       setSaving(true);
       setError(null);
 
+      const payload = {
+        fields: fields.map((field, index) => ({
+          id: field.id || `f${index + 1}`,
+          section: field.section.trim(),
+          name: field.name.trim(),
+          type: field.type,
+          required: field.required,
+          automationMode: field.automationMode,
+          notes: field.notes ?? '',
+        })),
+      };
+
       const res = await fetch(`${API_BASE}/projects/${projectId}/fields`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ fields }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -150,156 +177,147 @@ export default function ConfigureFieldsPage() {
       router.refresh();
     } catch (err) {
       console.error(err);
-      setError('Unable to save fields.');
+      setError(err instanceof Error ? err.message : 'Unable to save fields.');
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-slate-50 p-6">
-        <div className="mx-auto max-w-6xl rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
-          Loading project...
-        </div>
-      </main>
-    );
-  }
-
-  if (error && !project) {
-    return (
-      <main className="min-h-screen bg-slate-50 p-6">
-        <div className="mx-auto max-w-6xl rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-          {error}
-        </div>
-      </main>
-    );
-  }
-
   return (
-    <main className="min-h-screen bg-slate-50 p-6">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Define the CTOD fields to be extracted and reviewed.
-          </p>
-        </div>
+    <div className="flex min-h-screen">
+      <Sidebar />
+      <main className="flex-1 p-6">
+        <Topbar
+          title={title}
+          subtitle="Define the CTOD fields to be extracted and reviewed."
+        />
+
+        {loading ? (
+          <div className="card mt-6 p-6 text-sm text-slate-600">Loading project...</div>
+        ) : null}
 
         {error ? (
-          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {error}
           </div>
         ) : null}
 
-        <div className="space-y-4">
-          {fields.map((field, index) => (
-            <div
-              key={field.id}
-              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-            >
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-                <div>
-                  <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Section
-                  </label>
-                  <input
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                    value={field.section}
-                    onChange={(e) => updateField(index, { section: e.target.value })}
-                  />
-                </div>
+        {!loading ? (
+          <>
+            <div className="mt-6 space-y-4">
+              {fields.map((field, index) => (
+                <div key={field.id} className="card p-5">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Section
+                      </label>
+                      <input
+                        className="input"
+                        value={field.section}
+                        onChange={(e) => updateField(index, { section: e.target.value })}
+                      />
+                    </div>
 
-                <div>
-                  <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Field Name
-                  </label>
-                  <input
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                    value={field.name}
-                    onChange={(e) => updateField(index, { name: e.target.value })}
-                  />
-                </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Field Name
+                      </label>
+                      <input
+                        className="input"
+                        value={field.name}
+                        onChange={(e) => updateField(index, { name: e.target.value })}
+                      />
+                    </div>
 
-                <div>
-                  <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Type
-                  </label>
-                  <select
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                    value={field.type}
-                    onChange={(e) => updateField(index, { type: e.target.value })}
-                  >
-                    <option value="text">text</option>
-                    <option value="number">number</option>
-                    <option value="percentage">percentage</option>
-                    <option value="date">date</option>
-                    <option value="location">location</option>
-                    <option value="categorical">categorical</option>
-                  </select>
-                </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Type
+                      </label>
+                      <select
+                        className="select"
+                        value={field.type}
+                        onChange={(e) => updateField(index, { type: e.target.value })}
+                      >
+                        <option value="text">text</option>
+                        <option value="number">number</option>
+                        <option value="percentage">percentage</option>
+                        <option value="date">date</option>
+                        <option value="location">location</option>
+                        <option value="categorical">categorical</option>
+                      </select>
+                    </div>
 
-                <div>
-                  <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Automation
-                  </label>
-                  <select
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                    value={field.automationMode}
-                    onChange={(e) =>
-                      updateField(index, { automationMode: e.target.value })
-                    }
-                  >
-                    <option value="AI Curated">AI Curated</option>
-                    <option value="AI + Human">AI + Human</option>
-                    <option value="Human Only">Human Only</option>
-                  </select>
-                </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Automation
+                      </label>
+                      <select
+                        className="select"
+                        value={field.automationMode}
+                        onChange={(e) =>
+                          updateField(index, { automationMode: e.target.value })
+                        }
+                      >
+                        <option value="AI Curated">AI Curated</option>
+                        <option value="AI + Human">AI + Human</option>
+                        <option value="Human Only">Human Only</option>
+                      </select>
+                    </div>
 
-                <div className="flex items-end">
-                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                    <div className="flex items-end">
+                      <label className="flex items-center gap-2 text-sm text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={field.required}
+                          onChange={(e) => updateField(index, { required: e.target.checked })}
+                        />
+                        Required
+                      </label>
+                    </div>
+
+                    <div className="flex items-end justify-end">
+                      <button
+                        type="button"
+                        onClick={() => removeField(index)}
+                        className="button-secondary border-red-300 text-red-600 hover:bg-red-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Notes
+                    </label>
                     <input
-                      type="checkbox"
-                      checked={field.required}
-                      onChange={(e) => updateField(index, { required: e.target.checked })}
+                      className="input"
+                      value={field.notes ?? ''}
+                      onChange={(e) => updateField(index, { notes: e.target.value })}
                     />
-                    Required
-                  </label>
+                  </div>
                 </div>
-
-                <div className="flex items-end justify-end">
-                  <button
-                    type="button"
-                    onClick={() => removeField(index)}
-                    className="rounded-xl border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <div className="mt-5 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={addField}
-            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Add Field
-          </button>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button type="button" onClick={addField} className="button-secondary">
+                Add Field
+              </button>
 
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
-          >
-            {saving ? 'Saving...' : 'Save Fields'}
-          </button>
-        </div>
-      </div>
-    </main>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="button-primary disabled:opacity-60"
+              >
+                {saving ? 'Saving...' : 'Save Fields'}
+              </button>
+            </div>
+          </>
+        ) : null}
+      </main>
+    </div>
   );
 }
