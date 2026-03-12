@@ -1,36 +1,48 @@
-from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from typing import List
+import json
 
-from ..db import get_db
-from ..models import FieldDefinition, Project
-from ..schemas import FieldSetRequest
+from app.db import get_db
+from app.models import Project
 
-router = APIRouter(prefix='/projects', tags=['fields'])
+router = APIRouter(prefix="/projects", tags=["fields"])
 
 
-@router.post('/{project_id}/fields')
-def save_fields(project_id: int, payload: FieldSetRequest, db: Session = Depends(get_db)):
+class FieldItem(BaseModel):
+    id: str
+    section: str
+    name: str
+    type: str
+    required: bool
+    automationMode: str
+
+
+class SaveFieldsRequest(BaseModel):
+    fields: List[FieldItem]
+
+
+@router.post("/{project_id}/fields")
+def save_fields(project_id: int, payload: SaveFieldsRequest, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
+
     if not project:
-        raise HTTPException(status_code=404, detail='Project not found')
+        raise HTTPException(status_code=404, detail="Project not found")
 
-    db.query(FieldDefinition).filter(FieldDefinition.project_id == project_id).delete()
+    project.fields_json = json.dumps([field.model_dump() for field in payload.fields])
 
-    for field in payload.fields:
-        record = FieldDefinition(
-            project_id=project_id,
-            field_key=field.id,
-            section=field.section,
-            name=field.name,
-            field_type=field.type,
-            required='true' if field.required else 'false',
-            automation_mode=field.automationMode,
-        )
-        db.add(record)
+    if not project.stage:
+        project.stage = "Configured"
+    else:
+        project.stage = "Configured"
 
-    project.stage = 'Configured'
-    project.updated_at = datetime.utcnow()
-    db.add(project)
     db.commit()
-    return {'message': 'Field schema saved'}
+    db.refresh(project)
+
+    return {
+        "success": True,
+        "project_id": project.id,
+        "stage": project.stage,
+        "fields_count": len(payload.fields),
+    }
