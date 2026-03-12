@@ -13,24 +13,14 @@ type FieldConfig = {
   notes?: string;
 };
 
-type BackendField = {
-  id: number;
-  field_key: string;
-  section: string;
-  name: string;
-  field_type: string;
-  required: string;
-  automation_mode: string;
-  notes?: string | null;
-};
-
 type Project = {
   id: number;
   name: string;
   indication: string;
   template_name: string;
+  pdf_count: number;
   stage: string;
-  fields?: BackendField[];
+  fields_json?: FieldConfig[];
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -43,7 +33,6 @@ const defaultFields: FieldConfig[] = [
     type: 'text',
     required: true,
     automationMode: 'AI Curated',
-    notes: '',
   },
   {
     id: 'f2',
@@ -52,7 +41,6 @@ const defaultFields: FieldConfig[] = [
     type: 'location',
     required: true,
     automationMode: 'AI + Human',
-    notes: '',
   },
   {
     id: 'f3',
@@ -61,23 +49,8 @@ const defaultFields: FieldConfig[] = [
     type: 'text',
     required: true,
     automationMode: 'AI + Human',
-    notes: '',
   },
 ];
-
-function mapBackendFields(fields?: BackendField[]): FieldConfig[] {
-  if (!fields || fields.length === 0) return defaultFields;
-
-  return fields.map((field) => ({
-    id: field.field_key,
-    section: field.section,
-    name: field.name,
-    type: field.field_type,
-    required: field.required === 'true',
-    automationMode: field.automation_mode,
-    notes: field.notes ?? '',
-  }));
-}
 
 export default function ConfigureFieldsPage() {
   const params = useParams<{ id: string }>();
@@ -112,7 +85,11 @@ export default function ConfigureFieldsPage() {
 
         const data = await res.json();
         setProject(data);
-        setFields(mapBackendFields(data.fields));
+        setFields(
+          Array.isArray(data.fields_json) && data.fields_json.length > 0
+            ? data.fields_json
+            : defaultFields
+        );
       } catch (err) {
         console.error(err);
         setError('Unable to load project.');
@@ -299,17 +276,6 @@ export default function ConfigureFieldsPage() {
                     Remove
                   </button>
                 </div>
-              </div>
-
-              <div className="mt-4">
-                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Notes
-                </label>
-                <input
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                  value={field.notes ?? ''}
-                  onChange={(e) => updateField(index, { notes: e.target.value })}
-                />
               </div>
             </div>
           ))}
