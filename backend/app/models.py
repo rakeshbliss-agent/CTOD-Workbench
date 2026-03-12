@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, Float
 from sqlalchemy.orm import relationship
 from .db import Base
 
@@ -17,6 +17,7 @@ class Project(Base):
 
     files = relationship('UploadedFile', back_populates='project', cascade='all, delete-orphan')
     fields = relationship('FieldDefinition', back_populates='project', cascade='all, delete-orphan')
+    extraction_results = relationship('ExtractionResult', back_populates='project', cascade='all, delete-orphan')
 
 
 class UploadedFile(Base):
@@ -30,6 +31,7 @@ class UploadedFile(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     project = relationship('Project', back_populates='files')
+    extraction_results = relationship('ExtractionResult', back_populates='file', cascade='all, delete-orphan')
 
 
 class FieldDefinition(Base):
@@ -46,3 +48,27 @@ class FieldDefinition(Base):
     notes = Column(Text, nullable=True)
 
     project = relationship('Project', back_populates='fields')
+
+
+class ExtractionResult(Base):
+    __tablename__ = 'extraction_results'
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey('projects.id'), nullable=False)
+    file_id = Column(Integer, ForeignKey('uploaded_files.id'), nullable=False)
+
+    field_key = Column(String(255), nullable=False)
+    field_name = Column(String(255), nullable=False)
+    section = Column(String(255), nullable=False)
+
+    extracted_value = Column(Text, nullable=True)
+    evidence_snippet = Column(Text, nullable=True)
+    page_number = Column(Integer, nullable=True)
+    confidence = Column(Float, nullable=False, default=0.0)
+    status = Column(String(50), nullable=False, default='Draft')
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    project = relationship('Project', back_populates='extraction_results')
+    file = relationship('UploadedFile', back_populates='extraction_results')
