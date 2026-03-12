@@ -1,5 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel
+from typing import Optional
 
 
 class FieldConfigIn(BaseModel):
@@ -9,6 +10,7 @@ class FieldConfigIn(BaseModel):
     type: str
     required: bool
     automationMode: str
+    notes: Optional[str] = None
 
 
 class FieldConfigOut(BaseModel):
@@ -18,6 +20,7 @@ class FieldConfigOut(BaseModel):
     type: str
     required: bool
     automationMode: str
+    notes: Optional[str] = None
 
     class Config:
         from_attributes = True
