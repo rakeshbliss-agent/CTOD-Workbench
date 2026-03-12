@@ -22,6 +22,10 @@ type UploadedFile = {
   file_path: string;
 };
 
+type ExtractionResult = {
+  id: number;
+};
+
 type Project = {
   id: number;
   name: string;
@@ -32,6 +36,7 @@ type Project = {
   updated_at?: string;
   files?: UploadedFile[];
   fields?: FieldDefinition[];
+  extraction_results?: ExtractionResult[];
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
@@ -77,7 +82,7 @@ export default function HomePage() {
       <main className="flex-1 p-6">
         <Topbar
           title="CTOD Workbench"
-          subtitle="Create projects, upload PDFs, configure fields, and prepare for extraction."
+          subtitle="Create projects, upload PDFs, configure fields, run extraction, and review draft outputs."
         />
 
         <div className="mt-6 flex justify-end">
@@ -112,7 +117,7 @@ export default function HomePage() {
                     </p>
 
                     <p className="mt-2 text-sm text-slate-500">
-                      {project.fields?.length ?? 0} configured fields
+                      {project.fields?.length ?? 0} configured fields · {project.extraction_results?.length ?? 0} extraction rows
                     </p>
                   </div>
 
@@ -122,6 +127,13 @@ export default function HomePage() {
                       className="button-secondary"
                     >
                       Configure Fields
+                    </Link>
+
+                    <Link
+                      href={`/projects/${project.id}/extract`}
+                      className="button-secondary"
+                    >
+                      Extraction Review
                     </Link>
                   </div>
                 </div>
