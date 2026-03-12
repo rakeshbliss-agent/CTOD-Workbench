@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, selectinload
 
 from ..db import get_db
-from ..models import Project
+from ..models import ExtractionResult, Project
 from ..schemas import ExtractionResultOut, FieldConfigOut, ProjectCreate, ProjectOut
 
 router = APIRouter(prefix='/projects', tags=['projects'])
@@ -60,7 +60,7 @@ def list_projects(db: Session = Depends(get_db)):
         .options(
             selectinload(Project.files),
             selectinload(Project.fields),
-            selectinload(Project.extraction_results).selectinload('file'),
+            selectinload(Project.extraction_results).selectinload(ExtractionResult.file),
         )
         .order_by(Project.created_at.desc())
         .all()
@@ -88,7 +88,7 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
         .options(
             selectinload(Project.files),
             selectinload(Project.fields),
-            selectinload(Project.extraction_results).selectinload('file'),
+            selectinload(Project.extraction_results).selectinload(ExtractionResult.file),
         )
         .filter(Project.id == project.id)
         .first()
@@ -103,7 +103,7 @@ def get_project(project_id: int, db: Session = Depends(get_db)):
         .options(
             selectinload(Project.files),
             selectinload(Project.fields),
-            selectinload(Project.extraction_results).selectinload('file'),
+            selectinload(Project.extraction_results).selectinload(ExtractionResult.file),
         )
         .filter(Project.id == project_id)
         .first()
