@@ -9,6 +9,7 @@ export interface FieldConfig {
   type: FieldType;
   required: boolean;
   automationMode: AutomationMode;
+  notes?: string;
 }
 
 export interface UploadedFile {
