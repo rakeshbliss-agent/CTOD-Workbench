@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from ..db import get_db
 from ..models import Project
-from ..schemas import FieldConfigOut, ProjectCreate, ProjectOut
+from ..schemas import ExtractionResultOut, FieldConfigOut, ProjectCreate, ProjectOut
 
 router = APIRouter(prefix='/projects', tags=['projects'])
 
@@ -31,6 +31,25 @@ def serialize_project(project: Project) -> ProjectOut:
             )
             for field in project.fields
         ],
+        extraction_results=[
+            ExtractionResultOut(
+                id=item.id,
+                project_id=item.project_id,
+                file_id=item.file_id,
+                field_key=item.field_key,
+                field_name=item.field_name,
+                section=item.section,
+                extracted_value=item.extracted_value,
+                evidence_snippet=item.evidence_snippet,
+                page_number=item.page_number,
+                confidence=item.confidence,
+                status=item.status,
+                created_at=item.created_at,
+                updated_at=item.updated_at,
+                source_filename=item.file.original_filename if item.file else None,
+            )
+            for item in project.extraction_results
+        ],
     )
 
 
@@ -38,7 +57,11 @@ def serialize_project(project: Project) -> ProjectOut:
 def list_projects(db: Session = Depends(get_db)):
     projects = (
         db.query(Project)
-        .options(selectinload(Project.files), selectinload(Project.fields))
+        .options(
+            selectinload(Project.files),
+            selectinload(Project.fields),
+            selectinload(Project.extraction_results).selectinload('file'),
+        )
         .order_by(Project.created_at.desc())
         .all()
     )
@@ -62,7 +85,11 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
 
     project = (
         db.query(Project)
-        .options(selectinload(Project.files), selectinload(Project.fields))
+        .options(
+            selectinload(Project.files),
+            selectinload(Project.fields),
+            selectinload(Project.extraction_results).selectinload('file'),
+        )
         .filter(Project.id == project.id)
         .first()
     )
@@ -73,7 +100,11 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
 def get_project(project_id: int, db: Session = Depends(get_db)):
     project = (
         db.query(Project)
-        .options(selectinload(Project.files), selectinload(Project.fields))
+        .options(
+            selectinload(Project.files),
+            selectinload(Project.fields),
+            selectinload(Project.extraction_results).selectinload('file'),
+        )
         .filter(Project.id == project_id)
         .first()
     )
