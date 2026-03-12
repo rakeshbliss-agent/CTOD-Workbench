@@ -1,4 +1,4 @@
-import { FieldConfig, Project } from './types';
+import { ExtractionResult, FieldConfig, Project } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
@@ -30,8 +30,11 @@ export async function createProject(payload: {
   }));
 }
 
-export async function saveFields(projectId: string, fields: FieldConfig[]): Promise<{ message: string }> {
-  return handle<{ message: string }>(await fetch(`${API_BASE}/projects/${projectId}/fields`, {
+export async function saveFields(
+  projectId: string,
+  fields: FieldConfig[]
+): Promise<{ success?: boolean; message?: string }> {
+  return handle<{ success?: boolean; message?: string }>(await fetch(`${API_BASE}/projects/${projectId}/fields`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fields }),
@@ -46,4 +49,18 @@ export async function uploadPdf(projectId: string, file: File): Promise<{ messag
     body: form,
   });
   return handle<{ message: string; file_id: number }>(res);
+}
+
+export async function runExtraction(
+  projectId: string
+): Promise<{ message: string; project_id: number; results_created: number }> {
+  return handle(await fetch(`${API_BASE}/projects/${projectId}/extract`, {
+    method: 'POST',
+  }));
+}
+
+export async function listExtractions(projectId: string): Promise<ExtractionResult[]> {
+  return handle<ExtractionResult[]>(await fetch(`${API_BASE}/projects/${projectId}/extractions`, {
+    cache: 'no-store',
+  }));
 }
