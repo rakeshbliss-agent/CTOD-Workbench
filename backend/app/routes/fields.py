@@ -1,11 +1,12 @@
+from datetime import datetime
+from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import List, Optional
-from datetime import datetime
 
 from app.db import get_db
-from app.models import Project, FieldDefinition
+from app.models import FieldDefinition, Project
 
 router = APIRouter(prefix="/projects", tags=["fields"])
 
@@ -25,7 +26,11 @@ class SaveFieldsRequest(BaseModel):
 
 
 @router.post("/{project_id}/fields")
-def save_fields(project_id: int, payload: SaveFieldsRequest, db: Session = Depends(get_db)):
+def save_fields(
+    project_id: int,
+    payload: SaveFieldsRequest,
+    db: Session = Depends(get_db),
+):
     project = db.query(Project).filter(Project.id == project_id).first()
 
     if not project:
@@ -40,6 +45,8 @@ def save_fields(project_id: int, payload: SaveFieldsRequest, db: Session = Depen
     for field in existing_fields:
         db.delete(field)
 
+    db.flush()
+
     for item in payload.fields:
         new_field = FieldDefinition(
             project_id=project_id,
@@ -47,7 +54,7 @@ def save_fields(project_id: int, payload: SaveFieldsRequest, db: Session = Depen
             section=item.section,
             name=item.name,
             field_type=item.type,
-            required='true' if item.required else 'false',
+            required="true" if item.required else "false",
             automation_mode=item.automationMode,
             notes=item.notes,
         )
