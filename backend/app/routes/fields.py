@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import List
-import json
+from typing import List, Optional
+from datetime import datetime
 
 from app.db import get_db
-from app.models import Project
+from app.models import Project, FieldDefinition
 
 router = APIRouter(prefix="/projects", tags=["fields"])
 
@@ -17,6 +17,7 @@ class FieldItem(BaseModel):
     type: str
     required: bool
     automationMode: str
+    notes: Optional[str] = None
 
 
 class SaveFieldsRequest(BaseModel):
@@ -30,12 +31,30 @@ def save_fields(project_id: int, payload: SaveFieldsRequest, db: Session = Depen
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    project.fields_json = json.dumps([field.model_dump() for field in payload.fields])
+    existing_fields = (
+        db.query(FieldDefinition)
+        .filter(FieldDefinition.project_id == project_id)
+        .all()
+    )
 
-    if not project.stage:
-        project.stage = "Configured"
-    else:
-        project.stage = "Configured"
+    for field in existing_fields:
+        db.delete(field)
+
+    for item in payload.fields:
+        new_field = FieldDefinition(
+            project_id=project_id,
+            field_key=item.id,
+            section=item.section,
+            name=item.name,
+            field_type=item.type,
+            required='true' if item.required else 'false',
+            automation_mode=item.automationMode,
+            notes=item.notes,
+        )
+        db.add(new_field)
+
+    project.stage = "Configured"
+    project.updated_at = datetime.utcnow()
 
     db.commit()
     db.refresh(project)
