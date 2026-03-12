@@ -43,6 +43,26 @@ class UploadedFileOut(BaseModel):
         from_attributes = True
 
 
+class ExtractionResultOut(BaseModel):
+    id: int
+    project_id: int
+    file_id: int
+    field_key: str
+    field_name: str
+    section: str
+    extracted_value: Optional[str] = None
+    evidence_snippet: Optional[str] = None
+    page_number: Optional[int] = None
+    confidence: float
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    source_filename: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class ProjectOut(BaseModel):
     id: int
     name: str
@@ -53,6 +73,7 @@ class ProjectOut(BaseModel):
     updated_at: datetime
     files: list[UploadedFileOut] = []
     fields: list[FieldConfigOut] = []
+    extraction_results: list[ExtractionResultOut] = []
 
 
 class FieldSetRequest(BaseModel):
